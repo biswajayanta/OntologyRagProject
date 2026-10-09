@@ -1,103 +1,116 @@
-# Judges' Evaluation Question Bank — Day 2 Competition
+# Judges' Evaluation Question Bank: Day 2 Competition (v4, "Complete the grounding")
 
-**Use this with `day2_judging_scorecard.xlsx`, not instead of it.** With ~10–12 teams and a 90-minute live slot (2:00–3:30 PM), there isn't time for a full interview per team — scoring runs in two tiers:
+**Use this with `day2_judging_scorecard.xlsx`, not instead of it.** With ~10-12 teams and a 90-minute live slot (2:00-3:30 PM), scoring runs in two tiers:
 
-- **Tier 1 (batch, before 2:00 PM, submissions due 2 hrs ahead):** run the hidden test set on every team's submission with nobody present. This produces the numbers for Retrieval correctness (25%) and No fabricated connections (35%) — fill these into the `Batch Test Results` tab of the scorecard.
-- **Tier 2 (live, ~3 min/team during the session):** covers Runs end-to-end (15%) and Live demo clarity (10%), plus Grounding mechanism (15%) if you didn't finish that in the code-review pass beforehand. The question bank below is for this tier — short, targeted, and using the batch results to decide *which* question is worth asking a given team, rather than running the full bank on everyone.
+- **Tier 1 (batch, before 2:00 PM, submissions due 2 hrs ahead):** read each team's pattern registry and run the hidden pack. Produces No fabricated connections (30%), Affirms real links (20%) and Pattern choices (20%).
+- **Tier 2 (live, ~3 min/team):** Explaining outcomes (20%), Runs end-to-end (5%), Live demo clarity (5%). The questions below are for this tier. Use the batch results to decide *which* question is worth asking each team.
 
-If you have co-judges, score independently in your own copy of the scorecard and reconcile only at the 3:00–3:20 PM deliberation slot — don't compare live-checkpoint scores with them while you're still scoring.
+If you have co-judges, score independently in your own copy of the scorecard and reconcile only at the 3:00-3:20 PM deliberation.
 
----
-
-## Before the live session: run the hidden test set (Tier 1)
-
-Do this identically for every team's submission, with nobody present:
-
-1. Feed their running system the **7 hidden adversarial questions** (see `day2_dataset_generator.py` → `hidden_adversarial_tests`), the **3 positive-control questions** (`hidden_positive_control_tests` — correct answer is "yes, connected," not "unrelated"), and a fixed set of retrieval test questions (5 suggested — draft these against the specific dataset once it's finalized). All are unseen by teams.
-2. Record, per question: did it retrieve the right records? For the adversarial set, did it fabricate a connection, or correctly say "unrelated"? For the positive-control set, did it correctly affirm the connection, or did it also default to "unrelated" — which would mean it isn't really checking anything?
-3. Enter results into the `Batch Test Results` tab — Retrieval %, Fabrication %, and the separate Positive Control column.
-4. Use these results going into the live checkpoint to decide what's worth asking: a team that failed a hidden question is worth a direct question about it live; a team that aced the adversarial set but failed every positive control is worth asking about directly too — that pattern usually means "always say unrelated," not a real check.
+**What teams were given:** a working pipeline with ONE regex (Student ID) in a pattern registry. They extended the registry, ran an 8+3 question public pack, and wrote an outcomes table plus one remaining failure. They never saw the hidden pack.
 
 ---
 
-## 1. Retrieval correctness (25%)
+## Before the live session: Tier 1
 
-**Goal:** confirm retrieval is finding the right category of record, not just "something similar-sounding."
+For every team, with nobody present:
+
+1. Open the notebook. Read the `PATTERNS` and `REJECTED_CANDIDATES` cells. Note the pattern names.
+2. Count **Kind 1 added beyond Student** (Alumnus, Club, Ticket: 0-3) and **Kind 2 adopted** (Room, Block, Amount, Semester, or any other incidental field).
+3. Save the registry as JSON (`[{"name": ..., "regex": ...}, ...]`) and run `python day2_offline_check.py team_registry.json`. Copy the 1/0 marks for **H1-H9** (hidden adversarial) and **HP1-HP4** (hidden positive) into the `Batch Test Results` tab.
+4. For teams near a boundary, run their notebook live against the hidden pack (`day2_reference_solution.ipynb` section 8b shows how) and read the LLM's wording. The offline check does not simulate retrieval or the answer text.
+5. Decide what to ask live:
+   - A team with false links (adversarial failures): ask which pattern caused it.
+   - A team with all adversarial passes but missed positives: ask what strings they did *not* check. That pattern usually means they linked on too little.
+   - A team with both clean: ask the Kind 1 vs Kind 2 question below.
+
+**What each hidden question tests**
+
+| ID | Tests | A team fails it if it adopted... |
+|---|---|---|
+| H1-H6 | Vocabulary overlap and cross-category causal traps | (fails only if linking on very loose patterns) |
+| H7 | Room 118 shared by two different students | a **Room** pattern |
+| H8 | 46000 payment (S009) vs. an unrelated 46000 refund | an **Amount** pattern |
+| H9 | "spring semester" shared by library and shuttle records | a **Semester** pattern |
+| HP1 | HMT-58 ticket (needs a Ticket pattern) | missed **Ticket** |
+| HP2 | Student S001 (works with the given Student pattern) | (removed Student) |
+| HP3 | Club RC-1 (needs a Club pattern) | missed **Club** |
+| HP4 | Alumnus A001 (needs an Alumnus pattern) | missed **Alumnus** |
+
+---
+
+## 1. Pattern choices and rationale (20%)
+
+**Goal:** can the team tell an identifier from an incidental field, and defend it with the data?
 
 Ask:
-- "Walk me through what happens between me typing a question and your system finding a record — what does it actually search over?"
-- "Show me a question where your system retrieved the *wrong* record. Why do you think that happened?" (A team that can't produce one either hasn't tested edge cases, or is being unconvincing — probe further.)
-- "If I doubled your dataset size, what in your system would need to change?"
+- "Which of your patterns are Kind 1 and which Kind 2? How do you tell?"
+- "Pick a pattern you rejected. What in the data convinced you?" (Strong teams cite a specific record, e.g. Room 118 appearing for two different students.)
+- "Pick a pattern you adopted. If I saw that same string in a record from last year, would it still be about the same event?"
 
-**Strong answer:** names the embedding model, explains similarity search in their own words, can point to at least one real failure case they found themselves.
-**Weak answer:** can't explain what "similar" means in their system, treats retrieval as a black box they copy-pasted, has never tried an adversarial question themselves.
+**Strong answer:** Kind 1 = a string that is issued once per person, club or case and would still point to it anywhere. Kind 2 = a value reused across unrelated events (place, amount, time period). Uses specific records as evidence.
+**Weak answer:** "more patterns means more links", or "it repeated, so it must matter." Treats every repeating string as an identifier.
 
----
-
-## 2. No fabricated connections (35%) — the core criterion
-
-**Goal:** this is the whole point of the exercise. Spend the most interview time here.
-
-Ask, using 2–3 questions from your hidden set that they haven't seen:
-- "Here's a question I haven't shown you before: [ask one hidden adversarial question live]." Watch what it says — does it confidently merge two records, or does it correctly flag "these don't appear related in the data"?
-- "How does your system know when it *shouldn't* connect two records?" — this is the key design question. Listen for: an explicit schema/graph/entity check, vs. "the LLM is just prompted to be careful" (weaker — prompting alone doesn't reliably fix this, and they should know that from Day 1's demo).
-- "Show me the actual mechanism in your code/workflow that prevents this — not the prompt text, the logic."
-- If they used n8n: "Which node or step is doing the connection-checking — is it explicit logic, or are you trusting the LLM node to self-police?"
-
-**Strong answer:** can point to a specific structural check — ideally a Neo4j graph traversal (`shortestPath` / `connected_order`-style), the same mechanism taught on Day 1 — that would catch a fabricated link even if the LLM's phrasing tried to imply one. A lesser structural check (entity-ID match, a lookup table) still counts as real, just weaker. Understands *why* prompting alone (e.g., "don't make things up") is insufficient — ties back to the Day 1 lesson.
-**Weak answer:** relies entirely on prompt instructions ("I told it to only use the context"), cannot explain what actually stops a false merge, or — worst case — the live hidden-question test just showed it fabricating a connection in front of you.
-
-**Scoring note:** this criterion is graded primarily off the hidden test set results you already recorded, not off how well the team talks about it. Use the interview to catch a team that got lucky on the hidden set but has no real mechanism (talks like the weak-answer pattern) vs. a team that got one hidden question wrong despite a sound mechanism (partial credit, not zero).
+**Score it in the `Pattern Score` tab:** coverage and restraint are automatic from the batch counts. You enter rationale quality (0-30): each adopted pattern has an example and a same-event argument (0-10), rejected lookalikes have data-based reasons (0-10), and the team can articulate Kind 1 vs. Kind 2 live (0-10).
 
 ---
 
-## 3. Grounding mechanism present (15%)
+## 2. No fabricated connections (30%) and Affirms real links (20%)
 
-**Goal:** did they build something beyond raw vector similarity, or is it retrieval + LLM and nothing else?
+**Goal:** these are scored from the hidden pack, not from how well the team talks. Use the interview to catch a team that got lucky vs. one that understands.
 
 Ask:
-- "If I asked you to draw your data model on a whiteboard right now, what would it look like — a flat list, or something with structure?"
-- "Is there anywhere in your system where a relationship between two records is checked as a hard fact, rather than inferred from text similarity?"
-- "What would you add next if you had one more day?" (A team with real grounding usually names the *next* structural improvement — e.g., "add disjointness rules," "handle transitive relationships." A team with no grounding usually says "better prompts" or "bigger model.")
+- "Here is a question you haven't seen: [one hidden adversarial question]. What does your system say, and why?"
+- "Does your agent ever say two things ARE connected, or does it only ever say 'unrelated'?" (a fast way to spot a system that just learned to hedge)
+- "If I added 500 new records tomorrow, what would break and what would keep working?"
 
-**Strong answer:** a working Neo4j graph with an actual path/connectivity check — full credit, and what was taught on Day 1. A simple lookup table of valid category pairs is a real step beyond raw similarity too, and earns partial credit, but isn't the target mechanism this year.
-**Weak answer:** the entire system is "embed everything, retrieve top-k, ask the LLM" with no explicit structure anywhere.
+**Strong answer:** explains the verdict by naming the shared entity (or the absence of one). Understands that the registry, not the prompt, decides what gets linked.
+**Weak answer:** "we told the LLM to be careful", or blames the LLM for a link that their own pattern created.
 
----
-
-## 4. Runs end-to-end on judge's test set (15%)
-
-**Goal:** this is mostly binary and mechanical — you're confirming what you already saw.
-
-Ask (only if it broke):
-- "What just failed — is that a live-demo hiccup, or would it fail the same way every time?"
-- "If it's an API/rate-limit issue: is that a fundamental design gap, or bad luck on timing?"
-
-**Strong answer:** if something breaks, the team immediately knows why (and it's plausibly an infra hiccup, not a design flaw) and can show it working via a backup/recording.
-**Weak answer:** the team is surprised by the failure and can't explain it, or the failure is a repeatable design bug (e.g., crashes on any question containing a certain word).
+**Scoring note:** a team that passes everything adversarial but fails several positives gets full marks on one criterion and lost marks on the other. That is intended: both failure modes matter.
 
 ---
 
-## 5. Live demo clarity (10%)
+## 3. Explaining outcomes (20%)
 
-**Goal:** fixed checklist, minimal subjectivity — walk through it in order.
+**Goal:** can the team trace each result to its cause?
 
-- [ ] States the final answer to the judge's question clearly and directly (not buried in a paragraph)
-- [ ] States which record(s) it used to answer, or explicitly says "insufficient information" when that's correct
-- [ ] Stays within the ~3-minute checkpoint window
-- [ ] If asked "why did it answer that," someone on the team — not just one person — can explain the mechanism
+Ask (pick one row from their outcomes table, ideally a failure):
+- "Why did this one come out this way?"
+- "Where did the baseline fabricate and your graph didn't? What did your graph know that the baseline didn't?"
+- "You said your remaining failure is [X]. How would you find out whether it happens on a real question?"
 
-Score each box yes/no per team; this criterion should need almost no judgment call.
+**Strong answer:** attributes causes correctly (a pattern linked the records; retrieval did not return both; the link is written without an ID). The remaining failure is specific, plausible and testable.
+**Weak answer:** blames the LLM without checking which pattern created the link; vague remaining failure ("sometimes it's wrong"); the outcomes table is incomplete or copied.
+
+**Watch for:** a table where every row says "correct" with no remaining failure. Real systems have a limit; a team that cannot name one has not looked.
+
+---
+
+## 4. Runs end-to-end (5%)
+
+Mostly binary. Ask only if it broke:
+- "Is that a one-off (API, network, a paused Aura instance) or would it fail every time?"
+
+**Strong:** knows why it failed, and shows it working from a backup run.
+**Weak:** surprised by the failure, or it is a repeatable bug.
+
+---
+
+## 5. Live demo clarity (5%)
+
+Fixed checklist, yes/no each:
+- [ ] States the answer to your question directly
+- [ ] Cites the record IDs it used, or says "no recorded link" when that is right
+- [ ] Stays within ~3 minutes
+- [ ] More than one team member can explain one row of the outcomes table
 
 ---
 
 ## Rendering the final judgment
 
-Don't hand-calculate this — `day2_judging_scorecard.xlsx`'s "My Independent Scoring" tab pulls in the batch results and computes the weighted total and rank automatically as you fill in the three live-checkpoint scores per team. For each team, you'll have entered:
-1. Hidden test set results (pulled in automatically — retrieval %, fabrication %)
-2. Grounding mechanism score (from your code-review pass, done before or alongside the live checkpoint)
-3. Runs end-to-end + Live demo clarity (filled live, from the checkpoint above)
+`day2_judging_scorecard.xlsx` computes this for you. Weights: No fabrication 30% | Positives 20% | Pattern score 20% | Explaining outcomes 20% | Runs 5% | Demo 5%.
 
-When two teams are close, let the **"No fabricated connections"** criterion break the tie — it's weighted highest (35%) because it's the actual lesson of the two days; a team that nails retrieval but occasionally still fabricates a link has learned less than a team that's slightly slower but never does.
+When two teams are close, break the tie on **pattern rationale**. It is the clearest sign of understanding: a team that knows why a room number is not an identifier will handle the next dataset too.
 
-Log a one-line note per team in the scorecard's "Judge notes" column right after their checkpoint — you'll want it later if anyone asks how the judging worked, and you won't remember 10–12 teams' specifics by the end of the day, especially if reconciling scores with co-judges afterward.
+Log a one-line note per team in "Judge notes" right after their checkpoint. You will not remember 10-12 teams' specifics at the end of the day.

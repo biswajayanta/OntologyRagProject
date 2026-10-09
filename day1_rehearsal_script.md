@@ -1,12 +1,10 @@
 # Day 1 Rehearsal Script — Run This Before Oct 14
 
-Goal: verify every live demo works on **both** implementation routes, so nothing breaks live in front of 50+ students regardless of which one a team picks.
+Goal: verify every live demo works end to end on a fresh Colab runtime, so nothing breaks live in front of 50+ students.
 
-**Two tracks to test, identically:**
-- **Colab track (code path):** Colab free tier, `all-MiniLM-L6-v2` for embeddings, your notebooks (Weeks 1–3 pattern) for RAG/Graph RAG
-- **n8n track (no-code path):** n8n free-tier account, OpenAI node wired to your shared API key, same retrieval → generation → grounding-fix flow rebuilt as a workflow instead of code
+**Track to test:** Colab free tier, `all-MiniLM-L6-v2` for embeddings, your notebooks (Weeks 1-3 pattern) for RAG/Graph RAG, and the Day 2 starter for the hands-on lab.
 
-Run the *entire* rehearsal once on each track. Note timing and any errors per step. This directly targets last time's split — some students followed the LangGraph/Python demo, others followed better via n8n — so Day 1 has to work equally well demoed either way.
+Run the *entire* rehearsal once from a cold start. Note timing and any errors per step.
 
 ---
 
@@ -37,43 +35,39 @@ Checklist:
 
 ## Segment 3 (0:45–1:15) — RAG pipeline + the break (Week 2 material)
 
-**What to rehearse:** retrieval + generation, then the deliberate break — once in your Colab notebook, once as an n8n workflow (HTTP/embedding node → OpenAI node, same prompt).
+**What to rehearse:** retrieval + generation, then the deliberate break — in your Colab notebook.
 
-Checklist — Colab:
+Checklist:
 - [ ] `.env`/API key loads correctly on a **fresh Colab runtime**
 - [ ] Rehearse what happens if the API call is slow/rate-limited live — have a pre-run output ready to show if the live call hangs more than ~10 seconds
 
-Checklist — n8n:
-- [ ] Rebuild the same retrieval → prompt → OpenAI-node flow in a **fresh n8n free-tier account** (not your existing one, which already has saved credentials/history)
-- [ ] Confirm the OpenAI node picks up the shared API key via n8n credentials, not hardcoded in a node field (so you can rotate/revoke centrally)
-- [ ] Confirm the same conflated "stock replenishment" failure reproduces in n8n's output panel, not just in Colab — the lesson has to land the same way regardless of which tool a team is watching
 
 ---
 
 ## Segment 4 (1:15–1:45) — The fix: Graph RAG (Week 3 material)
 
-**What to rehearse:** the Neo4j Aura connection + the `connected_order: None` proof — once from the Colab notebook, once from an n8n Neo4j/HTTP node hitting the same Aura instance.
+**What to rehearse:** the Neo4j Aura connection + the `connected_order: None` proof — from the Colab notebook.
 
 Checklist:
 - [ ] **Aura Free instance status** — confirm it's not paused (Aura Free auto-pauses after inactivity; verify it's "Running" the morning of, not the night before)
 - [ ] Driver connection succeeds on a fresh Colab run (you already hit a `ServiceUnavailable` mid-session once — rehearse the fix: `driver.close()` + recreate, so if it happens live you're not debugging cold)
 - [ ] Confirm the two-cluster graph visualization renders correctly in the Aura Console query view you'll be screen-sharing
-- [ ] If demoing the n8n route for this segment too: confirm an n8n node can reach Aura (same URI/credentials pattern) from a fresh n8n account without a firewall/allowlist surprise
 
 ---
 
-## Segment 5 (2:00–3:30) — Hands-on lab
+## Segment 5 (2:00-3:30) - Hands-on lab
 
-This is the segment most likely to reveal Colab-vs-n8n divergence, since **students** will be running this, not you — some teams will build in notebooks, others in n8n, exactly like last time.
+Students open `day2_starter_notebook.ipynb`, run it, and do one guided step: add the Alumnus pattern and see the public positive control PP3 flip to "connected".
 
 Checklist:
-- [ ] Time how long the Colab starter notebook takes to run end-to-end from a cold start (no cached anything) — this is your realistic per-student setup time estimate for the code path
-- [ ] Time how long importing and running the n8n starter template takes on a **brand-new, never-configured** n8n account (not yours, which already has history/config) — ask someone to test this on a fresh signup if possible
-- [ ] If using a shared/pooled API key across both tracks: rehearse what happens under **concurrent load** — have a few people (or scripted parallel calls) hit the same key simultaneously across Colab and n8n at once, and confirm it doesn't rate-limit into failure
-- [ ] Confirm both starter kits (Colab notebook link, n8n template) are labeled clearly enough that a team knows which one they picked and doesn't mix instructions from the other
+- [ ] Time the starter notebook from a cold start on a fresh Colab runtime (no cached anything). This is your realistic per-student setup time.
+- [ ] With a **fresh Aura Free account**, confirm the graph-building cell finishes and prints per-pattern link counts
+- [ ] Before the guided step, PP3 shows "NOT connected" in `run_pack(PUBLIC_POSITIVE)`; after adding the Alumnus pattern and re-running the graph cell, it shows "CONNECTED via Alumnus A002"
+- [ ] If using a shared/pooled API key: have a few people (or scripted parallel calls) hit the same key at once and confirm it does not rate-limit into failure
+- [ ] **Pilot the baseline:** run the public and hidden packs through `baseline_rag_answer` and note how often it actually fabricates. Do the same in the reference solution. This tells you how strongly to frame "baseline fails, graph works" on Day 1.
 
 ---
 
 ## What to log after each rehearsal run
 
-For every segment: timing (actual vs. planned), any error encountered, and whether the Colab track and the n8n track behaved differently. This log is what turns into your final go/no-go call the day before the event — send it to me and we'll adjust the schedule/checklist together.
+For every segment: timing (actual vs. planned), any error encountered, and anything that behaved differently from the plan. This log is what turns into your final go/no-go call the day before the event — send it to me and we'll adjust the schedule/checklist together.
